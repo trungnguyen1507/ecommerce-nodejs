@@ -5,7 +5,6 @@ const {
 } = config
 
 const connectionString = `mongodb://${host}:${port}/${name}`
-console.log(connectionString)
 
 class Database {
   constructor() {
