@@ -19,7 +19,9 @@ const createTokenPairs = async (payload, accessTokenKey, refreshTokenKey) => {
     })
 
     return { accessToken, refreshToken }
-  } catch (error) {}
+  } catch (error) {
+    throw error
+  }
 }
 
 export default createTokenPairs

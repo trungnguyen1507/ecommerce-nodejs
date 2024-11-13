@@ -4,7 +4,8 @@ import crypto from 'crypto'
 import keyTokenService from './keyToken.service'
 import createTokenPairs from '~/auth/authUtils'
 import { getInfoData } from '~/utils'
-import { ConflictRequestError } from '~/core/error.response'
+import { AuthFailureError, BadRequestError, ConflictRequestError } from '~/core/error.response'
+import { shopService } from './shop.service'
 
 const RoleShop = {
   SHOP: 'SHOP',
@@ -14,6 +15,46 @@ const RoleShop = {
 }
 
 class AccessService {
+  /**
+   * 1 - check email in dbs
+   * 2 - match password
+   * 3 - create accessTokenKey, refreshTokenKey and save
+   * 4 - generate tokens
+   * 5 - get data return login
+   */
+  static login = async ({ email, password, refreshToken = null }) => {
+    // 1.
+    const foundShop = await shopService.findByEmail({ email })
+    if (!foundShop) {
+      throw new BadRequestError('Error: Shop not registered!')
+    }
+    // 2.
+    const match = await bcrypt.compare(password, foundShop.password)
+    console.log(match)
+    if (!match) {
+      throw new AuthFailureError('Error: Authentication error!')
+    }
+    // 3.
+    const accessTokenKey = crypto.randomBytes(64).toString('hex')
+    const refreshTokenKey = crypto.randomBytes(64).toString('hex')
+    // 4.
+    const { _id: userId } = foundShop
+    const tokens = await createTokenPairs({ userId, email }, accessTokenKey, refreshTokenKey)
+
+    await keyTokenService.createKeyToken({
+      userId,
+      accessTokenKey,
+      refreshTokenKey,
+      refreshToken: tokens.refreshToken
+    })
+    // 5.
+    return {
+      metadata: {
+        shop: getInfoData(['_id', 'name', 'email'], foundShop),
+        tokens
+      }
+    }
+  }
   static signUp = async ({ name, email, password }) => {
     // step 1: check email exist
     const holderShop = await shopModel.findOne({ email }).lean()
