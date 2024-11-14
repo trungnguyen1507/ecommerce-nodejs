@@ -2,7 +2,7 @@ import shopModel from '~/models/shop.model'
 import bcrypt from 'bcrypt'
 import crypto from 'crypto'
 import keyTokenService from './keyToken.service'
-import createTokenPairs from '~/auth/authUtils'
+import { createTokenPairs } from '~/auth/authUtils'
 import { getInfoData } from '~/utils'
 import { AuthFailureError, BadRequestError, ConflictRequestError } from '~/core/error.response'
 import { shopService } from './shop.service'
@@ -15,6 +15,11 @@ const RoleShop = {
 }
 
 class AccessService {
+  static logout = async (keyStore) => {
+    const delKey = await keyTokenService.removeKeyById(keyStore._id)
+    return delKey
+  }
+
   /**
    * 1 - check email in dbs
    * 2 - match password
