@@ -9,7 +9,7 @@ const HEADER = {
   AUTHORIZATION: 'authorization'
 }
 
-export const createTokenPairs = async (payload, accessTokenKey, refreshTokenKey) => {
+export const createTokenPairs = (payload, accessTokenKey, refreshTokenKey) => {
   try {
     // accessToken
     const accessToken = jwt.sign(payload, accessTokenKey, {
@@ -62,3 +62,7 @@ export const authentication = asyncHandler(async (req, res, next) => {
     throw error
   }
 })
+
+export const verifyJWT = (token, keySecret) => {
+  return jwt.verify(token, keySecret)
+}

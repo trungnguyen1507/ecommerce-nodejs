@@ -2,9 +2,9 @@ import shopModel from '~/models/shop.model'
 import bcrypt from 'bcrypt'
 import crypto from 'crypto'
 import keyTokenService from './keyToken.service'
-import { createTokenPairs } from '~/auth/authUtils'
+import { createTokenPairs, verifyJWT } from '~/auth/authUtils'
 import { getInfoData } from '~/utils'
-import { AuthFailureError, BadRequestError, ConflictRequestError } from '~/core/error.response'
+import { AuthFailureError, BadRequestError, ConflictRequestError, ForbiddenError } from '~/core/error.response'
 import { shopService } from './shop.service'
 
 const RoleShop = {
@@ -15,6 +15,42 @@ const RoleShop = {
 }
 
 class AccessService {
+  /**
+   * check this token used?
+   */
+  static handlerRefreshToken = async (refreshToken) => {
+    // check xem token này đã được sử dụng chưa
+    const foundToken = await keyTokenService.findByRefreshTokenUsed(refreshToken)
+    // nếu có
+    if (foundToken) {
+      // decode xem mày là thằng nào
+      const { userId, email } = await verifyJWT(refreshToken, foundToken.refreshTokenKey)
+      // xoá tất cả token trong keyStore
+      await keyTokenService.removeKeyByUserId(userId)
+      throw new ForbiddenError('Something wrong happened! Please login again')
+    }
+
+    const holderToken = await keyTokenService.findByRefreshToken(refreshToken)
+    if (!holderToken) throw new AuthFailureError('Shop is not registered')
+    // verify token
+    const { userId, email } = await verifyJWT(refreshToken, holderToken.refreshTokenKey)
+    // check user
+    const foundShop = await shopService.findByEmail({ email })
+    if (!foundShop) throw new AuthFailureError('Shop is not registered')
+
+    // create cặp token mới
+    const tokens = await createTokenPairs({ userId, email }, holderToken.accessTokenKey, holderToken.refreshTokenKey)
+    // update token
+    holderToken.refreshToken = tokens.refreshToken
+    holderToken.refreshTokensUsed.push(refreshToken)
+    await holderToken.save()
+
+    return {
+      user: { userId, email },
+      tokens
+    }
+  }
+
   static logout = async (keyStore) => {
     const delKey = await keyTokenService.removeKeyById(keyStore._id)
     return delKey
@@ -35,7 +71,7 @@ class AccessService {
     }
     // 2.
     const match = await bcrypt.compare(password, foundShop.password)
-    console.log(match)
+    // console.log(match)
     if (!match) {
       throw new AuthFailureError('Error: Authentication error!')
     }
