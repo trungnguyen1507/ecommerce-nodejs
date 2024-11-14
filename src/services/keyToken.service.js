@@ -1,3 +1,4 @@
+import { Types } from 'mongoose'
 import keytokenModel from '~/models/keytoken.model'
 
 class KeyTokenService {
@@ -20,6 +21,14 @@ class KeyTokenService {
     } catch (error) {
       throw error
     }
+  }
+
+  static findByUserId = async (userId) => {
+    return await keytokenModel.findOne({ user: userId }).lean()
+  }
+
+  static removeKeyById = async (id) => {
+    return await keytokenModel.deleteOne(id)
   }
 }
 
