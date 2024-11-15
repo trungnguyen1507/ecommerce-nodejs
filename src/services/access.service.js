@@ -67,13 +67,13 @@ class AccessService {
     // 1.
     const foundShop = await shopService.findByEmail({ email })
     if (!foundShop) {
-      throw new BadRequestError('Error: Shop not registered!')
+      throw new BadRequestError('Shop not registered')
     }
     // 2.
     const match = await bcrypt.compare(password, foundShop.password)
     // console.log(match)
     if (!match) {
-      throw new AuthFailureError('Error: Authentication error!')
+      throw new AuthFailureError('Password wrong')
     }
     // 3.
     const accessTokenKey = crypto.randomBytes(64).toString('hex')
@@ -100,7 +100,7 @@ class AccessService {
     // step 1: check email exist
     const holderShop = await shopModel.findOne({ email }).lean()
     if (holderShop) {
-      throw new ConflictRequestError('Error: Email already exist!')
+      throw new ConflictRequestError('Email already exist')
     }
 
     // step 2: create new shop
@@ -128,19 +128,17 @@ class AccessService {
       const accessTokenKey = crypto.randomBytes(64).toString('hex')
       const refreshTokenKey = crypto.randomBytes(64).toString('hex')
 
-      const keyStore = await keyTokenService.createKeyToken({ userId: newShop._id, accessTokenKey, refreshTokenKey })
-
-      if (!keyStore) {
-        return {
-          code: 'xxx',
-          message: 'keyStore error'
-        }
-      }
-
       // const publicKeyObject = crypto.createPublicKey(publicKeyString)
 
       // create token pair
       const tokens = await createTokenPairs({ userId: newShop._id, email }, accessTokenKey, refreshTokenKey)
+
+      await keyTokenService.createKeyToken({
+        userId: newShop._id,
+        accessTokenKey,
+        refreshTokenKey,
+        refreshToken: tokens.refreshToken
+      })
 
       return {
         code: 201,
